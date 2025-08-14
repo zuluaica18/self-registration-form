@@ -454,6 +454,7 @@ async def main():
         if "others" in st.session_state and st.session_state.others:
             address = adress_prev
             st.session_state.others = False
+
             if data is not None:
                 data["complement"] = st.session_state.complement
                 if "Selecciona el departamento" not in st.session_state.department:
@@ -554,6 +555,11 @@ async def main():
         st.session_state.department = select["department_select"]
         st.session_state.city = select["city_select"]
         st.rerun()
+    
+    if len(address) == 0 and data is not None:
+        data["address"] = ""
+        if "location" in data:
+            del data["location"]
     
     col1, col2 = st.columns([10, 10])
     department = col1.selectbox("Departamento", list(global_colombia.keys()), key="department", on_change=others, label_visibility="hidden")
