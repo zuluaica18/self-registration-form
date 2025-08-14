@@ -1,0 +1,6 @@
+__pycache__
+venv
+.venv
+todo.md
+.env
+secrets.toml
