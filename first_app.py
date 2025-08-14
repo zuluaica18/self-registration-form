@@ -14,7 +14,7 @@ global_address = ""
 global_address_select = ""
 global_address_select_last = ""
 global_complement_place = ""
-global_geometry = None
+global_data = None
 
 global_colombia = {
     "Selecciona el departamento": [],
@@ -115,8 +115,8 @@ def get_complement_place():
     return global_complement_place
 
 @st.cache_resource
-def get_geometry():
-    return global_geometry
+def get_data():
+    return global_data
 
 def others():
     st.session_state.others = True
@@ -130,6 +130,9 @@ async def main():
 
     st.html("""
         <style>
+            .stAppHeader {
+                display: none;
+            }
             div[data-testid="stMainBlockContainer"] {
                 padding: 0rem 0rem 0rem 0rem;
                 margin-left: auto;
@@ -439,7 +442,7 @@ async def main():
     address_select = get_address_select()
     address_select_last = get_address_select_last()
     complement_place = get_complement_place()
-    geometry = get_geometry()
+    data = get_data()
     if len(address_select) > 0:
         st.session_state.address = address_select
         st.session_state["st_keyup_address__False__hidden__500__default__Ingresa tu direccion"] = address_select
@@ -451,6 +454,18 @@ async def main():
         if "others" in st.session_state and st.session_state.others:
             address = adress_prev
             st.session_state.others = False
+            if data is not None:
+                data["complement"] = st.session_state.complement
+                if "Selecciona el departamento" not in st.session_state.department:
+                    data["department"] = st.session_state.department
+                else:
+                    if "department" in data:
+                        del data["department"]
+                if "Selecciona la ciudad" not in st.session_state.city and "department" in data:
+                    data["city"] = st.session_state.city
+                else:
+                    if "city" in data:
+                        del data["city"]
 
     complement = st.text_input("Complemento", key="complement", on_change=others, label_visibility="hidden", placeholder="Complemento: apartamento, torre (opcional)")
 
@@ -463,7 +478,7 @@ async def main():
     global global_address_select_last
     global global_complement_place
     global global_select
-    global global_geometry
+    global global_data
 
     select = get_select()
 
@@ -478,7 +493,7 @@ async def main():
                     geocode = await get_geocode(suggestion["placePrediction"]["placeId"])
                     formatted_address = geocode["results"][0]["formatted_address"]
                     address_components = geocode["results"][0]["address_components"]
-                    geometry = geocode["results"][0]["geometry"]
+                    location = geocode["results"][0]["geometry"]["location"]
                     for address_component in address_components:
                         if "administrative_area_level_1" in address_component["types"]:
                             global_select["department_select"] = address_component["long_name"]
@@ -492,15 +507,21 @@ async def main():
                     global_complement_place = suggestion["placePrediction"]["structuredFormat"]["mainText"]["text"]
                     if "urbanización" not in global_complement_place.lower():
                         global_complement_place = ""
-                    global_geometry = geometry
+                    global_data = {
+                        "address": global_address_select,
+                        "complement": global_complement_place,
+                        "department": global_select["department_select"],
+                        "city": global_select["city_select"],
+                        "location": location
+                    }
                     get_address_select.clear()
                     get_address_select()
                     get_address_select_last.clear()
                     get_address_select_last()
                     get_complement_place.clear()
                     get_complement_place()
-                    get_geometry.clear()
-                    get_geometry()
+                    get_data.clear()
+                    get_data()
                     st.rerun()
 
         click = flex.button("Utilizar dirección digitada")
@@ -510,7 +531,10 @@ async def main():
             global_complement_place = ""
             global_select["department_select"] = "Selecciona el departamento"
             global_select["city_select"] = "Selecciona la ciudad"
-            global_geometry = None
+            global_data = {
+                "address": global_address_select,
+                "complement": global_complement_place,
+            }
             get_address_select.clear()
             get_address_select()
             get_address_select_last.clear()
@@ -519,8 +543,8 @@ async def main():
             get_complement_place()
             get_select.clear()
             get_select()
-            get_geometry.clear()
-            get_geometry()
+            get_data.clear()
+            get_data()
             st.rerun()
     
     if len(address_select) > 0:
@@ -535,9 +559,9 @@ async def main():
     department = col1.selectbox("Departamento", list(global_colombia.keys()), key="department", on_change=others, label_visibility="hidden")
     city = col2.selectbox("Ciudad", ["Selecciona la ciudad"] + global_colombia[department], key="city", on_change=others, label_visibility="hidden")
 
-    if geometry is not None:
+    if data is not None:
         with st.echo():
-            geometry
+            data
 
     st.button("Log out", on_click=st.logout, key="logout")
 
