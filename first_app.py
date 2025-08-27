@@ -100,7 +100,7 @@ async def get_neighborhoods(department: str, city:str):
     leonisa_jsessionid = st.secrets["leonisa_jsessionid"]
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://appweb.negocioleonisa.com/self-registration-country/service/domicile-delivery-merchandise/get-districts/{department}/{city}", headers={"Content-Type": "application/json", "Cookie": f"JSESSIONID={leonisa_jsessionid}"}, timeout=None)
-        return [row["name"].capitalize() for row in response.json()]
+        return [row["name"].title() for row in response.json()]
 
 @st.cache_resource
 def get_client_ip():
@@ -481,12 +481,25 @@ async def main():
                 else:
                     if "department" in data:
                         del data["department"]
-                if "Selecciona la ciudad" not in st.session_state.city and "department" in data:
+                index_city = 0
+                try:
+                    index_city = (["Selecciona la ciudad"] + global_colombia[st.session_state.department]).index(st.session_state.city if "city" in st.session_state else "Selecciona la ciudad")
+                except Exception as e:
+                    index_city = 0
+                if index_city > 0 and "department" in data:
                     data["city"] = st.session_state.city
                 else:
                     if "city" in data:
                         del data["city"]
-                if "Selecciona el barrio" not in st.session_state.neighborhood and "department" in data and "city" in data:
+                neighborhoods = []
+                if st.session_state.department != "Selecciona el departamento" and st.session_state.city != "Selecciona la ciudad":
+                    neighborhoods = await get_neighborhoods(st.session_state.department, st.session_state.city)
+                index_neighborhood = 0
+                try:
+                    index_neighborhood = (["Selecciona el barrio"] + neighborhoods).index(st.session_state.neighborhood if "neighborhood" in st.session_state else "Selecciona el barrio")
+                except Exception as e:
+                    index_neighborhood = 0
+                if index_neighborhood > 0 and "department" in data and "city" in data:
                     data["neighborhood"] = st.session_state.neighborhood
                 else:
                     if "neighborhood" in data:
@@ -589,16 +602,31 @@ async def main():
         data["address"] = ""
         if "location" in data:
             del data["location"]
-    
+
     col1, col2 = st.columns([10, 10])
-    department = col1.selectbox("Departamento", list(global_colombia.keys()), key="department", on_change=others, label_visibility="hidden")
-    city = col2.selectbox("Ciudad", ["Selecciona la ciudad"] + global_colombia[department], key="city", on_change=others, label_visibility="hidden")
+    index_department = 0
+    try:
+        index_department = (list(global_colombia.keys())).index(st.session_state.department if "department" in st.session_state else "Selecciona el departamento")
+    except Exception as e:
+        index_department = 0
+    department = col1.selectbox("Departamento", list(global_colombia.keys()), index=index_department, key="department", on_change=others, label_visibility="hidden")
+    index_city = 0
+    try:
+        index_city = (["Selecciona la ciudad"] + global_colombia[department]).index(st.session_state.city if "city" in st.session_state else "Selecciona la ciudad")
+    except Exception as e:
+        index_city = 0
+    city = col2.selectbox("Ciudad", ["Selecciona la ciudad"] + global_colombia[department], index=index_city, key="city", on_change=others, label_visibility="hidden")
 
     neighborhoods = []
     if department != "Selecciona el departamento" and city != "Selecciona la ciudad":
         neighborhoods = await get_neighborhoods(department, city)
     col1f2, col2f2 = st.columns([10, 10])
-    neighborhood = col1f2.selectbox("Barrio", ["Selecciona el barrio"] + neighborhoods, key="neighborhood", on_change=others, label_visibility="hidden")
+    index_neighborhood = 0
+    try:
+        index_neighborhood = (["Selecciona el barrio"] + neighborhoods).index(st.session_state.neighborhood if "neighborhood" in st.session_state else "Selecciona el barrio")
+    except Exception as e:
+        index_neighborhood = 0
+    neighborhood = col1f2.selectbox("Barrio", ["Selecciona el barrio"] + neighborhoods, index=index_neighborhood, key="neighborhood", on_change=others, label_visibility="hidden")
 
     if data is not None:
         with st.echo():
