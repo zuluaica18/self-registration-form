@@ -161,6 +161,9 @@ async def main():
             div[data-testid="stElementContainer"]:has(iframe[height="0"]) {
                 display: none;
             }
+            div[data-testid="stElementContainer"]:has(.stAlert) {
+                display: none;
+            }
             .st-key-st_keyup_address__False__hidden__500__default__Ingresa-tu-direccion {
                 z-index: 99999;
             }
@@ -534,10 +537,22 @@ async def main():
                     location = geocode["results"][0]["geometry"]["location"]
                     for address_component in address_components:
                         if "administrative_area_level_1" in address_component["types"]:
-                            global_select["department_select"] = address_component["long_name"]
-                        if "administrative_area_level_2" in address_component["types"]:
+                            if address_component["long_name"] == "Bogotá":
+                                global_select["department_select"] = "Cundinamarca"
+                            else:
+                                global_select["department_select"] = address_component["long_name"]
+                            index_department = 0
+                            try:
+                                index_department = list(global_colombia.keys()).index(global_select["department_select"])
+                            except Exception as e:
+                                try:
+                                    index_department = ([change_accent(row) for row in list(global_colombia.keys())]).index(global_select["department_select"])
+                                except Exception as e:
+                                    index_department = 0
+                            global_select["department_select"] = list(global_colombia.keys())[index_department]
+                        if "locality" in address_component["types"]:
                             global_select["city_select"] = address_component["long_name"]
-                        if "administrative_area_level_3" in address_component["types"]:
+                        if "sublocality_level_1" in address_component["types"]:
                             global_select["neighborhood_select"] = address_component["long_name"]
                     get_select.clear()
                     get_select()
