@@ -100,7 +100,7 @@ async def get_neighborhoods(department: str, city:str):
     leonisa_jsessionid = st.secrets["leonisa_jsessionid"]
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://appweb.negocioleonisa.com/self-registration-country/service/domicile-delivery-merchandise/get-districts/{department}/{city}", headers={"Content-Type": "application/json", "Cookie": f"JSESSIONID={leonisa_jsessionid}"}, timeout=None)
-        return [row["name"] for row in response.json()]
+        return [row["name"].capitalize() for row in response.json()]
 
 @st.cache_resource
 def get_client_ip():
