@@ -9,7 +9,7 @@ from streamlit_javascript import st_javascript
 
 global_client_ip = None
 global_geo = { "latitude": 6.2529, "longitude": -75.5646 }
-global_select = { "department_select": "Selecciona el departamento", "city_select": "Selecciona la ciudad" }
+global_select = { "department_select": "Selecciona el departamento", "city_select": "Selecciona la ciudad", "neighborhood_select": "Selecciona el barrio" }
 global_address = ""
 global_address_select = ""
 global_address_select_last = ""
@@ -85,6 +85,22 @@ async def get_geocode(place_id: str):
     async with httpx.AsyncClient() as client:
         response = await client.get(f"https://maps.googleapis.com/maps/api/geocode/json?place_id={place_id}&key={api_key}", timeout=None)
         return response.json()
+
+def change_accent(word):
+    word = word.replace("á","a")
+    word = word.replace("é","e")
+    word = word.replace("í","i")
+    word = word.replace("ó","o")
+    word = word.replace("ú","u")
+    return word
+    
+async def get_neighborhoods(department: str, city:str):
+    department = change_accent(department.lower()).upper()
+    city = change_accent(city.lower()).upper()
+    leonisa_jsessionid = st.secrets["leonisa_jsessionid"]
+    async with httpx.AsyncClient() as client:
+        response = await client.get(f"https://appweb.negocioleonisa.com/self-registration-country/service/domicile-delivery-merchandise/get-districts/{department}/{city}", headers={"Content-Type": "application/json", "Cookie": f"JSESSIONID={leonisa_jsessionid}"}, timeout=None)
+        return [row["name"] for row in response.json()]
 
 @st.cache_resource
 def get_client_ip():
@@ -179,6 +195,9 @@ async def main():
             div[data-testid="stElementContainer"]:has(.stJson) {
                 margin-top: -20px;
                 border: 2px solid rgba(49, 51, 63, 0.2);
+            }
+            .st-key-neighborhood label {
+                display: none;
             }
             .st-key-login {
                 position: absolute;
@@ -467,6 +486,11 @@ async def main():
                 else:
                     if "city" in data:
                         del data["city"]
+                if "Selecciona el barrio" not in st.session_state.neighborhood and "department" in data and "city" in data:
+                    data["neighborhood"] = st.session_state.neighborhood
+                else:
+                    if "neighborhood" in data:
+                        del data["neighborhood"]
 
     complement = st.text_input("Complemento", key="complement", on_change=others, label_visibility="hidden", placeholder="Complemento: apartamento, torre (opcional)")
 
@@ -500,6 +524,8 @@ async def main():
                             global_select["department_select"] = address_component["long_name"]
                         if "administrative_area_level_2" in address_component["types"]:
                             global_select["city_select"] = address_component["long_name"]
+                        if "administrative_area_level_3" in address_component["types"]:
+                            global_select["neighborhood_select"] = address_component["long_name"]
                     get_select.clear()
                     get_select()
 
@@ -513,6 +539,7 @@ async def main():
                         "complement": global_complement_place,
                         "department": global_select["department_select"],
                         "city": global_select["city_select"],
+                        "neighborhood": global_select["neighborhood_select"],
                         "location": location
                     }
                     get_address_select.clear()
@@ -532,6 +559,7 @@ async def main():
             global_complement_place = ""
             global_select["department_select"] = "Selecciona el departamento"
             global_select["city_select"] = "Selecciona la ciudad"
+            global_select["neighborhood_select"] = "Selecciona el barrio"
             global_data = {
                 "address": global_address_select,
                 "complement": global_complement_place,
@@ -554,6 +582,7 @@ async def main():
         get_address_select()
         st.session_state.department = select["department_select"]
         st.session_state.city = select["city_select"]
+        st.session_state.neighborhood = select["neighborhood_select"]
         st.rerun()
     
     if len(address) == 0 and data is not None:
@@ -564,6 +593,12 @@ async def main():
     col1, col2 = st.columns([10, 10])
     department = col1.selectbox("Departamento", list(global_colombia.keys()), key="department", on_change=others, label_visibility="hidden")
     city = col2.selectbox("Ciudad", ["Selecciona la ciudad"] + global_colombia[department], key="city", on_change=others, label_visibility="hidden")
+
+    neighborhoods = []
+    if department != "Selecciona el departamento" and city != "Selecciona la ciudad":
+        neighborhoods = await get_neighborhoods(department, city)
+    col1f2, col2f2 = st.columns([10, 10])
+    neighborhood = col1f2.selectbox("Barrio", ["Selecciona el barrio"] + neighborhoods, key="neighborhood", on_change=others, label_visibility="hidden")
 
     if data is not None:
         with st.echo():
